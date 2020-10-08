@@ -149,10 +149,11 @@ func (l *List) Restore() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	for i, s := range l.bad {
+	for i := 0; i < len(l.bad); i++ {
+		s := l.bad[i]
 		if time.Since(s.lastUsage) > l.restoreTime {
-			l.bad[i] = l.bad[len(l.bad)-1]
-			l.bad = l.bad[:len(l.bad)-1]
+			l.bad = append(l.bad[:i], l.bad[i+1:]...)
+			i--
 
 			l.good = append(l.good, s)
 
@@ -164,17 +165,18 @@ func (l *List) Restore() {
 func (l *List) MarkBad(server *Server) {
 	server.Bad()
 
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
 	if server.fails < l.maxFails {
 		return
 	}
 
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	for i, s := range l.good {
+	for i := 0; i < len(l.good); i++ {
+		s := l.good[i]
 		if s == server {
-			l.good[i] = l.good[len(l.good)-1]
-			l.good = l.good[:len(l.good)-1]
+			l.good = append(l.good[:i], l.good[i+1:]...)
+			i--
 
 			l.bad = append(l.bad, s)
 
