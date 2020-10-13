@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"math/rand"
-	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -28,6 +27,7 @@ type SelectMode int
 type List struct {
 	good []*Server
 	bad  []*Server
+	uniq map[string]struct{}
 
 	restoreTime time.Duration
 	maxFails    int
@@ -38,7 +38,12 @@ type List struct {
 }
 
 func New(mode SelectMode, maxFails int, restoreTime time.Duration) *List {
-	l := &List{mode: mode, maxFails: maxFails, restoreTime: restoreTime}
+	l := &List{
+		mode:        mode,
+		maxFails:    maxFails,
+		restoreTime: restoreTime,
+		uniq:        make(map[string]struct{}),
+	}
 
 	go func() {
 		for range time.Tick(time.Minute) {
@@ -81,23 +86,15 @@ func (l *List) LoadFromReader(reader io.Reader) error {
 
 // 1.2.3.4, 1.2.3.4:8080, example.com, example.com:8000
 func (l *List) Add(addr string) {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		host = addr
-	}
-
-	ip := net.ParseIP(host)
-	if ip != nil && !ip.IsGlobalUnicast() {
-		return
-	}
-
-	if host == `` {
-		return
-	}
-
 	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if _, ok := l.uniq[addr]; ok {
+		return
+	}
+
 	l.good = append(l.good, &Server{Addr: addr})
-	l.mu.Unlock()
+	l.uniq[addr] = struct{}{}
 }
 
 func (l *List) Count() int {
