@@ -8,7 +8,7 @@ import (
 func TestGetServerRandom(t *testing.T) {
 	r := New(ModeRandom, 10, time.Minute)
 
-	err := r.LoadFromString("8.8.8.8\n1.1.1.1\n8.8.8.4")
+	err := r.LoadFromString("8.8.8.8\n#hello\n1.1.1.1\n8.8.8.4")
 	if err != nil {
 		t.Error(err)
 	}
@@ -72,7 +72,7 @@ func TestGetServerRoundRobin(t *testing.T) {
 func TestBadServerList(t *testing.T) {
 	r := New(ModeRotate, 10, time.Minute)
 
-	err := r.LoadFromString("\n\n255.255.255.255\n127.0.0.1\n127.0.0.100\n0.0.0.0\n169.254.1.0\n169.254.254.255")
+	err := r.LoadFromString("\n\n\r\n\t\n")
 	if err != nil {
 		t.Error(err)
 	}

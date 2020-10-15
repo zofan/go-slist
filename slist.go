@@ -72,7 +72,7 @@ func (l *List) LoadFromURL(url string) error {
 func (l *List) LoadFromReader(reader io.Reader) error {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
-		l.Add(strings.TrimSpace(scanner.Text()))
+		l.Add(scanner.Text())
 	}
 
 	return scanner.Err()
@@ -80,6 +80,12 @@ func (l *List) LoadFromReader(reader io.Reader) error {
 
 // 1.2.3.4, 1.2.3.4:8080, example.com, example.com:8000
 func (l *List) Add(addr string) {
+	line := strings.TrimSpace(addr)
+
+	if len(addr) == 0 || line[0] == '#' {
+		return
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -119,14 +125,10 @@ func (l *List) Get() (s *Server, err error) {
 	case ModeRandom:
 		s = l.good[rand.Intn(len(l.good))]
 	case ModeRotate:
-		addr := l.good[l.n]
-
-		l.n++
-		if int(l.n) > len(l.good)-1 {
+		s = l.good[l.n]
+		if l.n++; int(l.n) > len(l.good)-1 {
 			l.n = 0
 		}
-
-		s = addr
 	default:
 		return nil, ErrBadMode
 	}
