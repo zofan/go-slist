@@ -70,12 +70,6 @@ func (l *List) LoadFromURL(url string) error {
 }
 
 func (l *List) LoadFromReader(reader io.Reader) error {
-	l.mu.Lock()
-	l.good = []*Server{}
-	l.bad = []*Server{}
-	l.n = 0
-	l.mu.Unlock()
-
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		l.Add(strings.TrimSpace(scanner.Text()))
