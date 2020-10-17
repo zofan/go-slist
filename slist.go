@@ -111,6 +111,17 @@ func (l *List) GoodList() []*Server {
 	return l.good
 }
 
+func (l *List) Shuffle() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	rand.Seed(time.Now().UnixNano())
+
+	rand.Shuffle(len(l.good), func(i, j int) {
+		l.good[i], l.good[j] = l.good[j], l.good[i]
+	})
+}
+
 func (l *List) Get() (s *Server, err error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
