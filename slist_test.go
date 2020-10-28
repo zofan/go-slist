@@ -2,11 +2,10 @@ package slist
 
 import (
 	"testing"
-	"time"
 )
 
 func TestGetServerRandom(t *testing.T) {
-	r := New(ModeRandom, 10, time.Minute)
+	r := New(ModeRandom, 10)
 
 	err := r.LoadFromString("8.8.8.8\n#hello\n1.1.1.1\n8.8.8.4")
 	if err != nil {
@@ -27,14 +26,14 @@ func TestGetServerRandom(t *testing.T) {
 }
 
 func TestGetServerRoundRobin(t *testing.T) {
-	r := New(ModeRotate, 10, time.Minute)
+	r := New(ModeRotate, 10)
 
 	err := r.LoadFromString("8.8.8.8\n1.1.1.1\n8.8.8.4")
 	if err != nil {
 		t.Error(err)
 	}
 
-	servers := r.GoodList()
+	servers := r.All()
 
 	srv1, err := r.Get()
 	if err != nil {
@@ -70,7 +69,7 @@ func TestGetServerRoundRobin(t *testing.T) {
 }
 
 func TestBadServerList(t *testing.T) {
-	r := New(ModeRotate, 10, time.Minute)
+	r := New(ModeRotate, 10)
 
 	err := r.LoadFromString("\n\n\r\n\t\n")
 	if err != nil {

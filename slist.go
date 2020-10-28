@@ -29,20 +29,21 @@ type List struct {
 	bad  []*Server
 	uniq map[string]struct{}
 
-	restoreTime time.Duration
-	maxFails    int
-	mode        SelectMode
-	n           int
+	maxKarma int
+	mode     SelectMode
+	n        int
+
+	BanFunc func(s *Server) time.Time
 
 	mu sync.Mutex
 }
 
-func New(mode SelectMode, maxFails int, restoreTime time.Duration) *List {
+func New(mode SelectMode, maxKarma int) *List {
 	l := &List{
-		mode:        mode,
-		maxFails:    maxFails,
-		restoreTime: restoreTime,
-		uniq:        make(map[string]struct{}),
+		mode:     mode,
+		maxKarma: maxKarma,
+		uniq:     make(map[string]struct{}),
+		BanFunc:  DefaultBan,
 	}
 
 	go func() {
@@ -78,7 +79,6 @@ func (l *List) LoadFromReader(reader io.Reader) error {
 	return scanner.Err()
 }
 
-// 1.2.3.4, 1.2.3.4:8080, example.com, example.com:8000
 func (l *List) Add(addr string) {
 	line := strings.TrimSpace(addr)
 
@@ -104,7 +104,7 @@ func (l *List) Count() int {
 	return len(l.good)
 }
 
-func (l *List) GoodList() []*Server {
+func (l *List) All() []*Server {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -144,7 +144,7 @@ func (l *List) Get() (s *Server, err error) {
 		return nil, ErrBadMode
 	}
 
-	s.lastUsage = time.Now()
+	s.LastUsage = time.Now()
 
 	return
 }
@@ -153,39 +153,55 @@ func (l *List) Restore() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	now := time.Now()
+
 	for i := 0; i < len(l.bad); i++ {
 		s := l.bad[i]
-		if time.Since(s.lastUsage) > l.restoreTime {
+		if now.After(s.BanExpires) {
 			l.bad = append(l.bad[:i], l.bad[i+1:]...)
-			i--
-
 			l.good = append(l.good, s)
-
-			s.Good()
+			l.MarkGood(s)
+			i--
 		}
 	}
 }
 
-func (l *List) MarkBad(server *Server) {
-	server.Bad()
-
+func (l *List) MarkGood(s *Server) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	if server.fails < l.maxFails {
+	s.Karma = 0
+	s.GoodCnt++
+	s.BanExpires = time.Time{}
+}
+
+func (l *List) MarkBad(s *Server) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	s.BadCnt++
+	s.Karma++
+
+	if s.Karma < l.maxKarma {
 		return
 	}
 
+	if l.BanFunc == nil {
+		s.BanExpires = DefaultBan(s)
+	} else {
+		s.BanExpires = l.BanFunc(s)
+	}
+
 	for i := 0; i < len(l.good); i++ {
-		s := l.good[i]
-		if s == server {
+		if l.good[i] == s {
 			l.good = append(l.good[:i], l.good[i+1:]...)
-			i--
-
-			l.bad = append(l.bad, s)
-
+			l.bad = append(l.bad, l.good[i])
 			l.n = 0
 			break
 		}
 	}
+}
+
+func DefaultBan(s *Server) time.Time {
+	return time.Now().Add(time.Minute)
 }

@@ -5,16 +5,10 @@ import "time"
 type Server struct {
 	Addr string
 
-	bad       bool
-	fails     int
-	lastUsage time.Time
-}
+	Karma   int
+	GoodCnt int
+	BadCnt  int
 
-func (s *Server) Bad() {
-	s.bad = true
-	s.fails++
-}
-
-func (s *Server) Good() {
-	s.bad = false
+	LastUsage  time.Time
+	BanExpires time.Time
 }
