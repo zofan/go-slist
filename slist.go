@@ -35,7 +35,8 @@ type List struct {
 
 	BanFunc func(s *Server) time.Time
 
-	mu sync.Mutex
+	mu   sync.Mutex
+	rand *rand.Rand
 }
 
 func New(mode SelectMode, maxKarma int) *List {
@@ -44,6 +45,7 @@ func New(mode SelectMode, maxKarma int) *List {
 		maxKarma: maxKarma,
 		uniq:     make(map[string]struct{}),
 		BanFunc:  DefaultBan,
+		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 
 	go func() {
@@ -115,9 +117,7 @@ func (l *List) Shuffle() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	rand.Seed(time.Now().UnixNano())
-
-	rand.Shuffle(len(l.good), func(i, j int) {
+	l.rand.Shuffle(len(l.good), func(i, j int) {
 		l.good[i], l.good[j] = l.good[j], l.good[i]
 	})
 }
@@ -134,10 +134,10 @@ func (l *List) Get() (s *Server, err error) {
 	case ModeTime:
 		s = l.good[time.Now().Unix()%int64(len(l.good))]
 	case ModeRandom:
-		s = l.good[rand.Intn(len(l.good))]
+		s = l.good[l.rand.Intn(len(l.good))]
 	case ModeRotate:
 		s = l.good[l.n]
-		if l.n++; int(l.n) > len(l.good)-1 {
+		if l.n++; l.n > len(l.good)-1 {
 			l.n = 0
 		}
 	default:
