@@ -137,7 +137,8 @@ func (l *List) Get() (s *Server, err error) {
 		s = l.good[l.rand.Intn(len(l.good))]
 	case ModeRotate:
 		s = l.good[l.n]
-		if l.n++; l.n > len(l.good)-1 {
+		l.n++
+		if l.n == len(l.good) {
 			l.n = 0
 		}
 	default:
@@ -150,29 +151,33 @@ func (l *List) Get() (s *Server, err error) {
 }
 
 func (l *List) Restore() {
+	now := time.Now()
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
-	now := time.Now()
 
 	for i := 0; i < len(l.bad); i++ {
 		s := l.bad[i]
 		if now.After(s.BanExpires) {
 			l.bad = append(l.bad[:i], l.bad[i+1:]...)
 			l.good = append(l.good, s)
-			l.MarkGood(s)
+			l.markGood(s)
 			i--
 		}
 	}
+}
+
+func (l *List) markGood(s *Server) {
+	s.Karma = 0
+	s.GoodCnt++
+	s.BanExpires = time.Time{}
 }
 
 func (l *List) MarkGood(s *Server) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	s.Karma = 0
-	s.GoodCnt++
-	s.BanExpires = time.Time{}
+	l.markGood(s)
 }
 
 func (l *List) MarkBad(s *Server) {
