@@ -152,7 +152,7 @@ func (l *List) Get() (s *Server, err error) {
 	case ModeRandom:
 		s = l.good[l.rand.Intn(len(l.good))]
 	case ModeRotate:
-		if l.n == len(l.good) {
+		if l.n >= len(l.good)-1 {
 			l.n = 0
 		}
 		s = l.good[l.n]
