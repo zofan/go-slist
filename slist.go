@@ -6,6 +6,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -72,6 +73,21 @@ func (l *List) LoadFromURL(url string) error {
 	return l.LoadFromReader(resp.Body)
 }
 
+func (l *List) LoadFromFile(file string) error {
+	fh, err := os.OpenFile(file, os.O_RDONLY, 0664)
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+
+	scanner := bufio.NewScanner(fh)
+	for scanner.Scan() {
+		l.Add(scanner.Text())
+	}
+
+	return scanner.Err()
+}
+
 func (l *List) LoadFromReader(reader io.Reader) error {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
@@ -136,11 +152,11 @@ func (l *List) Get() (s *Server, err error) {
 	case ModeRandom:
 		s = l.good[l.rand.Intn(len(l.good))]
 	case ModeRotate:
-		s = l.good[l.n]
-		l.n++
 		if l.n == len(l.good) {
 			l.n = 0
 		}
+		s = l.good[l.n]
+		l.n++
 	default:
 		return nil, ErrBadMode
 	}
